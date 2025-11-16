@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  n8n:
+    image: n8n-puppeteer:latest
+    container_name: n8n
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+    security_opt:
+      - seccomp=unconfined
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - NODE_ENV=production
+      - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+      - QUEUE_BULL_REDIS_HOST=${HOST_IP}
+      - QUEUE_BULL_REDIS_PORT=6379
+      - QUEUE_BULL_REDIS_DB=0
+      - QUEUE_BULL_REDIS_PASSWORD=${REDIS_PASSWORD}
+      # Dùng ACL username nếu có, mặc định Redis có user "default"
+      - QUEUE_BULL_REDIS_USERNAME=${REDIS_USERNAME:-default}
+      # Timeout tuỳ chọn (ms)
+      - QUEUE_BULL_REDIS_TIMEOUT=120000
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - /local-files:/files
+    networks:
+      - n8n_network
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    ports:
+       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - n8n_network
+    restart: unless-stopped
+
+volumes:
+  n8n_data:
+    external: true
+  redis_data:
+  postgres_data:
+networks:
+  n8n_network:
+    driver: bridge
